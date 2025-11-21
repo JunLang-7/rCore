@@ -1,5 +1,5 @@
-use core::fmt;
 use crate::println;
+use core::fmt;
 
 /// Logging level
 pub const ERROR: u8 = 1;
@@ -23,7 +23,7 @@ const fn get_log_level() -> u8 {
                 b'T' => TRACE,
                 _ => INFO,
             }
-        },
+        }
         None => INFO,
     }
 }

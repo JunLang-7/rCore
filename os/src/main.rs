@@ -36,7 +36,10 @@ pub fn rust_main() -> ! {
     info!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
     info!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
     info!(".bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
-    debug!(".boot_stack [{:#x}, {:#x})", boot_stack_lower_bound as usize, boot_stack_top as usize);
+    debug!(
+        ".boot_stack [{:#x}, {:#x})",
+        boot_stack_lower_bound as usize, boot_stack_top as usize
+    );
 
     panic!("shut down!");
 }
