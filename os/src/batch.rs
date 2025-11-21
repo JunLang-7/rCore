@@ -145,3 +145,7 @@ pub fn run_next_app() -> ! {
     }
     panic!("Unreachable in batch::run_current_app!");
 }
+
+pub fn get_running_app() -> usize {
+    APP_MANAGER.exclusive_access().get_current_app() - 1
+}
