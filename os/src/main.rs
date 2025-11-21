@@ -1,15 +1,21 @@
 #![no_std]
 #![no_main]
 
+use core::arch::global_asm;
+use log::*;
+
 #[macro_use]
 mod console;
+pub mod batch;
 mod lang_items;
-mod sbi;
-#[macro_use]
 mod logging;
+mod sbi;
+mod sync;
+pub mod syscall;
+pub mod trap;
 
-use core::arch::global_asm;
 global_asm!(include_str!("entry.asm"));
+global_asm!(include_str!("link_app.S"));
 
 #[unsafe(no_mangle)]
 pub fn rust_main() -> ! {
@@ -26,22 +32,28 @@ pub fn rust_main() -> ! {
         safe fn boot_stack_top(); // stack top
     }
     clear_bss();
-    trace!("This is a TRACE message");
-    debug!("This is a DEBUG message");
-    info!("This is an INFO message");
-    warn!("This is a WARN message");
-    error!("This is an ERROR message");
-
-    info!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
-    info!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
-    info!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
-    info!(".bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
-    debug!(
-        ".boot_stack [{:#x}, {:#x})",
-        boot_stack_lower_bound as usize, boot_stack_top as usize
+    logging::init();
+    println!("[kernel] Hello, world!");
+    trace!(
+        "[kernel] .text [{:#x}, {:#x})",
+        stext as usize, etext as usize
     );
-
-    panic!("shut down!");
+    debug!(
+        "[kernel] .rodata [{:#x}, {:#x})",
+        srodata as usize, erodata as usize
+    );
+    info!(
+        "[kernel] .data [{:#x}, {:#x})",
+        sdata as usize, edata as usize
+    );
+    warn!(
+        "[kernel] boot_stack top=bottom={:#x}, lower_bound={:#x}",
+        boot_stack_top as usize, boot_stack_lower_bound as usize
+    );
+    error!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
+    trap::init();
+    batch::init();
+    batch::run_next_app();
 }
 
 fn clear_bss() {

@@ -1,80 +1,47 @@
-use crate::println;
-use core::fmt;
+/*！
 
-/// Logging level
-pub const ERROR: u8 = 1;
-pub const WARN: u8 = 2;
-pub const INFO: u8 = 3;
-pub const DEBUG: u8 = 4;
-pub const TRACE: u8 = 5;
+本模块利用 log crate 为你提供了日志功能，使用方式见 main.rs.
 
-const fn get_log_level() -> u8 {
-    match option_env!("LOG") {
-        Some(env) => {
-            let bytes = env.as_bytes();
-            if bytes.is_empty() {
-                return INFO;
-            }
-            match bytes[0] {
-                b'E' => ERROR,
-                b'W' => WARN,
-                b'I' => INFO,
-                b'D' => DEBUG,
-                b'T' => TRACE,
-                _ => INFO,
-            }
+*/
+
+use log::{self, Level, LevelFilter, Log, Metadata, Record};
+
+struct SimpleLogger;
+
+impl Log for SimpleLogger {
+    fn enabled(&self, _metadata: &Metadata) -> bool {
+        true
+    }
+    fn log(&self, record: &Record) {
+        if !self.enabled(record.metadata()) {
+            return;
         }
-        None => INFO,
-    }
-}
-
-const LOG_LEVEL: u8 = get_log_level();
-
-pub fn print_log(level: u8, args: fmt::Arguments) {
-    if level <= LOG_LEVEL {
-        let (level_str, color_code) = match level {
-            ERROR => ("ERROR", 31),
-            WARN => ("WARN", 93),
-            INFO => ("INFO", 34),
-            DEBUG => ("DEBUG", 32),
-            TRACE => ("TRACE", 90),
-            _ => ("LOG", 0),
+        let color = match record.level() {
+            Level::Error => 31, // Red
+            Level::Warn => 93,  // BrightYellow
+            Level::Info => 34,  // Blue
+            Level::Debug => 32, // Green
+            Level::Trace => 90, // BrightBlack
         };
-        println!("\x1b[{}m[{}]{}\x1b[0m", color_code, level_str, args);
+        println!(
+            "\u{1B}[{}m[{:>5}] {}\u{1B}[0m",
+            color,
+            record.level(),
+            record.args(),
+        );
     }
+    fn flush(&self) {}
 }
 
-#[macro_export]
-macro_rules! error {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::logging::print_log($crate::logging::ERROR, format_args!($fmt $(, $($arg)+)?));
-    }
-}
-
-#[macro_export]
-macro_rules! warn {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::logging::print_log($crate::logging::WARN, format_args!($fmt $(, $($arg)+)?));
-    }
-}
-
-#[macro_export]
-macro_rules! info {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::logging::print_log($crate::logging::INFO, format_args!($fmt $(, $($arg)+)?));
-    }
-}
-
-#[macro_export]
-macro_rules! debug {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::logging::print_log($crate::logging::DEBUG, format_args!($fmt $(, $($arg)+)?));
-    }
-}
-
-#[macro_export]
-macro_rules! trace {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::logging::print_log($crate::logging::TRACE, format_args!($fmt $(, $($arg)+)?));
-    }
+pub fn init() {
+    static LOGGER: SimpleLogger = SimpleLogger;
+    log::set_logger(&LOGGER).unwrap();
+    log::set_max_level(match option_env!("LOG") {
+        Some("ERROR") => LevelFilter::Error,
+        Some("WARN") => LevelFilter::Warn,
+        Some("INFO") => LevelFilter::Info,
+        Some("DEBUG") => LevelFilter::Debug,
+        Some("TRACE") => LevelFilter::Trace,
+        _ => LevelFilter::Info,
+    });
 }
