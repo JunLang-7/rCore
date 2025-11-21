@@ -6,6 +6,8 @@ pub mod console;
 mod lang_items;
 mod syscall;
 
+pub use console::STDOUT;
+
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text.entry")]
 pub extern "C" fn _start() -> ! {

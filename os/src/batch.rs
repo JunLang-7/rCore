@@ -4,7 +4,7 @@ use crate::trap::TrapContext;
 use core::arch::asm;
 use lazy_static::*;
 
-const USER_STACK_SIZE: usize = 4096 * 2;
+const USER_STACK_SIZE: usize = 4096;
 const KERNEL_STACK_SIZE: usize = 4096 * 2;
 const MAX_APP_NUM: usize = 16;
 const APP_BASE_ADDRESS: usize = 0x80400000;
@@ -144,4 +144,21 @@ pub fn run_next_app() -> ! {
         )) as *const _ as usize);
     }
     panic!("Unreachable in batch::run_current_app!");
+}
+
+/// check if buffer in valid address
+pub fn check_user_buffer(addr: usize, len: usize) -> bool {
+    let end = addr.wrapping_add(len);
+    if end < addr {
+        return false;
+    }
+
+    // if in app vaild space
+    let in_app_area = addr >= APP_BASE_ADDRESS && end <= APP_BASE_ADDRESS + APP_SIZE_LIMIT;
+
+    // if in user stack valid space
+    let sp = USER_STACK.get_sp();
+    let in_stack_area = addr >= sp - USER_STACK_SIZE && end <= sp;
+
+    in_app_area || in_stack_area
 }
