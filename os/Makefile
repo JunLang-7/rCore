@@ -5,6 +5,8 @@ KERNEL_ELF := target/$(TARGET)/$(MODE)/os
 KERNEL_BIN := $(KERNEL_ELF).bin
 DISASM_TMP := target/$(TARGET)/$(MODE)/asm
 
+LOG ?= INFO
+
 # Building mode argument
 ifeq ($(MODE), release)
 	MODE_ARG := --release
@@ -39,7 +41,7 @@ $(KERNEL_BIN): kernel
 kernel:
 	@echo Platform: $(BOARD)
 	@cp src/linker-$(BOARD).ld src/linker.ld
-	@cargo build $(MODE_ARG)
+	@LOG=$(LOG) cargo build $(MODE_ARG)
 	@rm src/linker.ld
 
 clean:
