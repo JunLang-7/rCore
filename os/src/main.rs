@@ -6,8 +6,9 @@ use log::*;
 
 #[macro_use]
 mod console;
-pub mod batch;
+mod config;
 mod lang_items;
+pub mod loader;
 mod logging;
 mod sbi;
 mod sync;
@@ -52,8 +53,9 @@ pub fn rust_main() -> ! {
     );
     error!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
     trap::init();
-    batch::init();
-    batch::run_next_app();
+    loader::init();
+    loader::load_app();
+    loader::run_next_app();
 }
 
 fn clear_bss() {
