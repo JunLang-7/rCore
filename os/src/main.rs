@@ -13,6 +13,7 @@ mod logging;
 mod sbi;
 mod sync;
 pub mod syscall;
+pub mod task;
 pub mod trap;
 
 global_asm!(include_str!("entry.asm"));
@@ -53,9 +54,9 @@ pub fn rust_main() -> ! {
     );
     error!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
     trap::init();
-    loader::init();
     loader::load_app();
-    loader::run_next_app();
+    task::run_first_task();
+    panic!("Unreachable in rust_main!");
 }
 
 fn clear_bss() {
