@@ -8,13 +8,15 @@ use crate::config::MAX_APP_NUM;
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
-use crate::timer::get_time_ms;
+use crate::timer::{get_time_ms, get_time_us};
 use lazy_static::*;
 use log::*;
-use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
+
+static mut SWITCH_TIME_START: usize = 0;
+static mut SWITCH_TIME_COUNT: usize = 0;
 
 pub struct TaskManager {
     num_app: usize,
@@ -114,6 +116,7 @@ impl TaskManager {
             // go back to user modde
         } else {
             println!("All applicaitons completed!");
+            println!("task switch time: {} us", get_switch_time_count());
             shutdown(false);
         }
     }
@@ -137,6 +140,18 @@ impl TaskManagerInner {
         self.stop_watch = get_time_ms();
         self.stop_watch - start_time
     }
+}
+
+unsafe fn __switch(current_task_cx_ptr: *mut TaskContext, next_task_cx_ptr: *const TaskContext) {
+    unsafe {
+        SWITCH_TIME_START = get_time_us();
+        switch::__switch(current_task_cx_ptr, next_task_cx_ptr);
+        SWITCH_TIME_COUNT += get_time_us() - SWITCH_TIME_START;
+    }
+}
+
+pub fn get_switch_time_count() -> usize {
+    unsafe { SWITCH_TIME_COUNT }
 }
 
 pub fn run_first_task() {
