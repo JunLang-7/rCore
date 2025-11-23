@@ -11,6 +11,7 @@ use crate::sync::UPSafeCell;
 use lazy_static::*;
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
+use log::*;
 
 pub use context::TaskContext;
 
@@ -65,12 +66,14 @@ impl TaskManager {
     fn mark_current_suspended(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
+        debug!("task {} suspend", current);
         inner.tasks[current].task_status = TaskStatus::Ready;
     }
 
     fn mark_current_exited(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
+        debug!("task {} exited", current);
         inner.tasks[current].task_status = TaskStatus::Exited;
     }
 
@@ -88,6 +91,7 @@ impl TaskManager {
             let current = inner.current_task;
             inner.tasks[next].task_status = TaskStatus::Running;
             inner.current_task = next;
+            debug!("task {} start", next);
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &mut inner.tasks[next].task_cx as *const TaskContext;
             drop(inner);
