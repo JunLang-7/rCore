@@ -1,4 +1,5 @@
 //! Implementation of [`TaskContext`]
+use crate::trap::trap_return;
 
 /// Task Context
 #[repr(C)]
@@ -18,13 +19,10 @@ impl TaskContext {
         }
     }
 
-    /// set task context {__restore ASM function, kernel stack s_0..11 }
-    pub fn goto_restore(kstack_ptr: usize) -> Self {
-        unsafe extern "C" {
-            unsafe fn __restore();
-        }
+    /// set task context {__restore ASM function: trap_return, sp kernel_ptr, s: s_0..12 }
+    pub fn goto_trap_return(kstack_ptr: usize) -> Self {
         Self {
-            ra: __restore as usize,
+            ra: trap_return as usize,
             sp: kstack_ptr,
             s: [0; 12],
         }
