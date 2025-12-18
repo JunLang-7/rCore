@@ -21,6 +21,19 @@ fn main() -> i32 {
 
 use syscall::*;
 
+#[repr(C)]
+#[derive(Default)]
+pub struct TimeVal {
+    pub sec: usize,
+    pub usec: usize,
+}
+
+impl TimeVal {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 pub fn write(fd: usize, buf: &[u8]) -> isize {
     sys_write(fd, buf)
 }
@@ -34,7 +47,11 @@ pub fn yield_() -> isize {
 }
 
 pub fn get_time() -> isize {
-    sys_get_time()
+    let mut time = TimeVal::new();
+    match sys_get_time(&mut time, 0) {
+        0 => ((time.sec & 0xffff) * 1000 + time.usec / 1000) as isize,
+        _ => -1,
+    }
 }
 
 pub fn sbrk(size: i32) -> isize {
