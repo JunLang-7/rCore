@@ -1,10 +1,15 @@
 use core::arch::asm;
 
+const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
 const SYS_EXIT: usize = 93;
 const SYS_YIELD: usize = 124;
 const SYS_GET_TIME: usize = 169;
+const SYS_GETPID: usize = 172;
 const SYS_SBRK: usize = 214;
+const SYS_FORK: usize = 220;
+const SYS_EXEC: usize = 221;
+const SYS_WAITPID: usize = 260;
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -20,12 +25,17 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
     ret
 }
 
+pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
+    syscall(SYS_READ, [fd, buffer.as_mut_ptr() as usize, buffer.len()])
+}
+
 pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {
     syscall(SYS_WRITE, [fd, buffer.as_ptr() as usize, buffer.len()])
 }
 
-pub fn sys_exit(xstate: i32) -> isize {
-    syscall(SYS_EXIT, [xstate as usize, 0, 0])
+pub fn sys_exit(xstate: i32) -> ! {
+    syscall(SYS_EXIT, [xstate as usize, 0, 0]);
+    panic!("sys_exit never returns!");
 }
 
 pub fn sys_yield() -> isize {
@@ -36,6 +46,22 @@ pub fn sys_get_time() -> isize {
     syscall(SYS_GET_TIME, [0, 0, 0])
 }
 
+pub fn sys_getpid() -> isize {
+    syscall(SYS_GETPID, [0, 0, 0])
+}
+
 pub fn sys_sbrk(size: i32) -> isize {
     syscall(SYS_SBRK, [size as usize, 0, 0])
+}
+
+pub fn sys_fork() -> isize {
+    syscall(SYS_FORK, [0, 0, 0])
+}
+
+pub fn sys_exec(path: &str) -> isize {
+    syscall(SYS_EXEC, [path.as_ptr() as usize, 0, 0])
+}
+
+pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
+    syscall(SYS_WAITPID, [pid as usize, exit_code as usize, 0])
 }
