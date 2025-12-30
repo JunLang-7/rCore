@@ -140,3 +140,18 @@ pub fn sys_spawn(path: *const u8) -> isize {
         -1
     }
 }
+
+pub fn sys_set_priority(prio: isize) -> isize {
+    trace!(
+        "[kernel] pid[{}] sys_set_priority, piro={}",
+        current_task().unwrap().pid.0,
+        prio
+    );
+    if prio <= 1 {
+        return -1;
+    }
+    let task = current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+    inner.priority = prio as usize;
+    prio
+}

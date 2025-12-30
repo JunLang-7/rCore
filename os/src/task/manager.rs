@@ -22,7 +22,16 @@ impl TaskManager {
     }
 
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        self.ready_queue.pop_front()
+        let mut min_index = 0;
+        let mut min_stride = usize::MAX;
+        for (i, task) in self.ready_queue.iter().enumerate() {
+            let task_inner = task.inner_exclusive_access();
+            if task_inner.stride < min_stride {
+                min_stride = task_inner.stride;
+                min_index = i;
+            }
+        }
+        self.ready_queue.remove(min_index)
     }
 }
 

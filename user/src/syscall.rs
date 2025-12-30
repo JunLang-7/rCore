@@ -5,6 +5,7 @@ const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
 const SYS_EXIT: usize = 93;
 const SYS_YIELD: usize = 124;
+const SYS_SET_PRIORITY: usize = 140;
 const SYS_GET_TIME: usize = 169;
 const SYS_GETPID: usize = 172;
 const SYS_SBRK: usize = 214;
@@ -38,6 +39,10 @@ pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {
 pub fn sys_exit(xstate: i32) -> ! {
     syscall(SYS_EXIT, [xstate as usize, 0, 0]);
     panic!("sys_exit never returns!");
+}
+
+pub fn sys_set_priority(prio: isize) -> isize {
+    syscall(SYS_SET_PRIORITY, [prio as usize, 0, 0])
 }
 
 pub fn sys_yield() -> isize {
