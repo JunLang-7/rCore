@@ -1,12 +1,19 @@
 use crate::loader::get_app_data_by_name;
-use crate::mm::{translated_refmut, translated_str};
+use crate::mm::{translated_byte_buffer, translated_refmut, translated_str};
 use crate::task::{
     add_task, current_task, current_user_token, exit_current_and_run_next,
     suspend_current_and_run_next,
 };
-use crate::timer::get_time_ms;
+use crate::timer::get_time_us;
 use alloc::sync::Arc;
 use log::trace;
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct TimeVal {
+    sec: usize,
+    usec: usize,
+}
 
 /// task exits and submit an exit code
 pub fn sys_exit(exit_code: i32) -> ! {
@@ -19,8 +26,31 @@ pub fn sys_yield() -> isize {
     0
 }
 
-pub fn sys_get_time() -> isize {
-    get_time_ms() as isize
+pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
+    trace!("[kernel] sys_get_time called");
+    let us = get_time_us();
+    let tv = TimeVal {
+        sec: us / 1_000_000,
+        usec: us % 1_000_000,
+    };
+    let src = unsafe {
+        core::slice::from_raw_parts(
+            &tv as *const TimeVal as *const u8,
+            core::mem::size_of::<TimeVal>(),
+        )
+    };
+    let buffers = translated_byte_buffer(
+        current_user_token(),
+        _ts as *const TimeVal as *const u8,
+        src.len(),
+    );
+    let mut offset = 0usize;
+    for buffer in buffers {
+        let len = buffer.len();
+        buffer.copy_from_slice(&src[offset..offset + len]);
+        offset += len;
+    }
+    0
 }
 
 pub fn sys_getpid() -> isize {

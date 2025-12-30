@@ -1,4 +1,5 @@
 use core::arch::asm;
+use crate::TimeVal;
 
 const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
@@ -42,8 +43,8 @@ pub fn sys_yield() -> isize {
     syscall(SYS_YIELD, [0, 0, 0])
 }
 
-pub fn sys_get_time() -> isize {
-    syscall(SYS_GET_TIME, [0, 0, 0])
+pub fn sys_get_time(time: &mut TimeVal, tz: usize) -> isize {
+    syscall(SYS_GET_TIME, [time as *const _ as usize, tz, 0])
 }
 
 pub fn sys_getpid() -> isize {
