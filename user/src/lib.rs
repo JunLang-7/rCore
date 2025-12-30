@@ -113,3 +113,7 @@ pub fn sleep(period_ms: usize) {
         sys_yield();
     }
 }
+
+pub fn spawn(path: &str) -> isize {
+    sys_spawn(path)
+}
