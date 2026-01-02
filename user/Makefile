@@ -2,22 +2,45 @@ TARGET := riscv64gc-unknown-none-elf
 MODE := release
 APP_DIR := src/bin
 TARGET_DIR := target/$(TARGET)/$(MODE)
-APPS := $(wildcard $(APP_DIR)/*.rs)
-ELFS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%, $(APPS))
-BINS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%.bin, $(APPS))
-
+BUILD_DIR := build
 OBJDUMP := rust-objdump --arch-name=riscv64
 OBJCOPY := rust-objcopy --binary-architecture=riscv64
 
-elf: $(APPS)
-	@cargo build --release
+ifeq ($(MODE), release)
+	MODE_ARG := --release
+endif
 
-binary: elf
-	@$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
+APPS := $(wildcard $(APP_DIR)/*.rs)
 
-build: binary
+ELFS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%, $(APPS))
+
+binary: 
+	@echo $(ELFS)
+	@cargo build $(MODE_ARG)
+	@$(foreach elf, $(ELFS), \
+		$(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf)); \
+		cp $(elf) $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.elf, $(elf));)
+
+disasm:
+	@$(foreach elf, $(ELFS), \
+		$(OBJDUMP) $(elf) -S > $(patsubst $(TARGET_DIR)/%, $(BUILD_DIR)/%.asm, $(elf));)
+	@$(foreach elf, $(ELFS), cp $(t).asm $(BUILD_DIR)/asm/;)
+
+pre:
+	@mkdir -p $(BUILD_DIR)/bin/
+	@mkdir -p $(BUILD_DIR)/elf/
+	@mkdir -p $(BUILD_DIR)/app/
+	@mkdir -p $(BUILD_DIR)/asm/
+	@$(foreach t, $(APPS), cp $(t) $(BUILD_DIR)/app/;)
+
+build: clean pre binary
+	@$(foreach t, $(ELFS), cp $(t).bin $(BUILD_DIR)/bin/;)
+	@$(foreach t, $(ELFS), cp $(t).elf $(BUILD_DIR)/elf/;)
 
 clean:
 	@cargo clean
+	@rm -rf $(BUILD_DIR)
 
-.PHONY: elf binary build clean
+all: build
+
+.PHONY: elf binary build clean all

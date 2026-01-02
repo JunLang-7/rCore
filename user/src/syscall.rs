@@ -1,6 +1,8 @@
-use core::arch::asm;
 use crate::TimeVal;
+use core::arch::asm;
 
+const SYS_OPEN: usize = 56;
+const SYS_CLOSE: usize = 57;
 const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
 const SYS_EXIT: usize = 93;
@@ -24,6 +26,14 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
         );
     }
     ret
+}
+
+pub fn sys_open(path: &str, flags: u32) -> isize {
+    syscall(SYS_OPEN, [path.as_ptr() as usize, flags as usize, 0])
+}
+
+pub fn sys_close(fd: usize) -> isize {
+    syscall(SYS_CLOSE, [fd, 0, 0])
 }
 
 pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {

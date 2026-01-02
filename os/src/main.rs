@@ -16,8 +16,9 @@ mod board;
 #[macro_use]
 mod console;
 mod config;
+mod drivers;
+mod fs;
 mod lang_items;
-pub mod loader;
 mod logging;
 pub mod mm;
 mod sbi;
@@ -43,7 +44,7 @@ pub fn rust_main() -> ! {
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    loader::list_apps();
+    fs::list_apps();
     task::run_tasks();
     panic!("Unreachable in rust_main!");
 }

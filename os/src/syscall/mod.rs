@@ -1,3 +1,5 @@
+const SYS_OPEN: usize = 56;
+const SYS_CLOSE: usize = 57;
 const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
 const SYS_EXIT: usize = 93;
@@ -17,6 +19,8 @@ use process::*;
 
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     match syscall_id {
+        SYS_OPEN => sys_open(args[0] as *const u8, args[1] as u32),
+        SYS_CLOSE => sys_close(args[0]),
         SYS_READ => sys_read(args[0], args[1] as *const u8, args[2]),
         SYS_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
         SYS_EXIT => sys_exit(args[0] as i32),
