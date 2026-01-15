@@ -1,7 +1,10 @@
+const SYS_UNLINKAT: usize = 35;
+const SYS_LINKAT: usize = 37;
 const SYS_OPEN: usize = 56;
 const SYS_CLOSE: usize = 57;
 const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
+const SYS_FSTAT: usize = 80;
 const SYS_EXIT: usize = 93;
 const SYS_YIELD: usize = 124;
 const SYS_SET_PRIORITY: usize = 140;
@@ -19,12 +22,17 @@ mod process;
 use fs::*;
 use process::*;
 
-pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
+use crate::fs::Stat;
+
+pub fn syscall(syscall_id: usize, args: [usize; 4]) -> isize {
     match syscall_id {
+        SYS_LINKAT => sys_linkat(args[1] as *const u8, args[3] as *const u8),
+        SYS_UNLINKAT => sys_unlinkat(args[1] as *const u8),
         SYS_OPEN => sys_open(args[0] as *const u8, args[1] as u32),
         SYS_CLOSE => sys_close(args[0]),
         SYS_READ => sys_read(args[0], args[1] as *const u8, args[2]),
         SYS_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
+        SYS_FSTAT => sys_fstat(args[0], args[1] as *mut Stat),
         SYS_EXIT => sys_exit(args[0] as i32),
         SYS_YIELD => sys_yield(),
         SYS_SET_PRIORITY => sys_set_priority(args[0] as isize),

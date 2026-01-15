@@ -75,7 +75,7 @@ impl SuperBlock {
 }
 
 /// Type of a disk inode
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiskInodeType {
     File,
     Directory,
@@ -437,5 +437,14 @@ impl DirEntry {
     /// Get inode id
     pub fn inode_id(&self) -> u32 {
         self.inode_id
+    }
+    /// Check whether the entry is empty
+    pub fn is_empty(&self) -> bool {
+        self.inode_id == 0 || self.name[0] == 0
+    }
+    /// Clear the entry contents
+    pub fn clear(&mut self) {
+        self.name.iter_mut().for_each(|b| *b = 0);
+        self.inode_id = 0;
     }
 }

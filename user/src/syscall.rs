@@ -1,10 +1,13 @@
-use crate::TimeVal;
+use crate::{Stat, TimeVal};
 use core::arch::asm;
 
 const SYS_OPEN: usize = 56;
 const SYS_CLOSE: usize = 57;
+const SYS_UNLINKAT: usize = 35;
+const SYS_LINKAT: usize = 37;
 const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
+const SYS_FSTAT: usize = 80;
 const SYS_EXIT: usize = 93;
 const SYS_YIELD: usize = 124;
 const SYS_SET_PRIORITY: usize = 140;
@@ -30,6 +33,23 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
     ret
 }
 
+pub fn syscall6(id: usize, args: [usize; 6]) -> isize {
+    let mut ret: isize;
+    unsafe {
+        asm!(
+            "ecall",
+            inlateout("x10") args[0] => ret,
+            in("x11") args[1],
+            in("x12") args[2],
+            in("x13") args[3],
+            in("x14") args[4],
+            in("x15") args[5],
+            in("x17") id
+        );
+    }
+    ret
+}
+
 pub fn sys_open(path: &str, flags: u32) -> isize {
     syscall(SYS_OPEN, [path.as_ptr() as usize, flags as usize, 0])
 }
@@ -44,6 +64,34 @@ pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
 
 pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {
     syscall(SYS_WRITE, [fd, buffer.as_ptr() as usize, buffer.len()])
+}
+
+pub fn sys_linkat(
+    old_dirfd: usize,
+    old_path: &str,
+    new_dirfd: usize,
+    new_path: &str,
+    flags: usize,
+) -> isize {
+    syscall6(
+        SYS_LINKAT,
+        [
+            old_dirfd,
+            old_path.as_ptr() as usize,
+            new_dirfd,
+            new_path.as_ptr() as usize,
+            flags,
+            0,
+        ],
+    )
+}
+
+pub fn sys_unlinkat(dirfd: usize, path: &str, flags: usize) -> isize {
+    syscall(SYS_UNLINKAT, [dirfd, path.as_ptr() as usize, flags])
+}
+
+pub fn sys_fstat(fd: usize, st: &mut Stat) -> isize {
+    syscall(SYS_FSTAT, [fd, st as *const _ as usize, 0])
 }
 
 pub fn sys_exit(xstate: i32) -> ! {

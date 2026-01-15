@@ -3,7 +3,12 @@ use easy_fs::{EasyFileSystem, Inode};
 use lazy_static::*;
 
 use super::File;
-use crate::{drivers::BLOCK_DEVICE, mm::UserBuffer, sync::UPSafeCell};
+use crate::{
+    drivers::BLOCK_DEVICE,
+    fs::{Stat, StatMode},
+    mm::UserBuffer,
+    sync::UPSafeCell,
+};
 
 /// inode in memory
 /// A wrapper around a file system inode
@@ -45,6 +50,28 @@ impl OSInode {
         }
         v
     }
+
+    /// Collect metadata for this inode
+    pub fn metadata(&self) -> Stat {
+        let inode = {
+            let inner = self.inner.exclusive_access();
+            inner.inode.clone()
+        };
+        let inode_id = inode.inode_id();
+        let mode = if inode.is_dir() {
+            StatMode::DIR
+        } else {
+            StatMode::FILE
+        };
+        let nlink = ROOT_INODE.link_count(inode_id);
+        Stat {
+            dev: 0,
+            ino: inode_id as u64,
+            mode,
+            nlink,
+            pad: [0; 7],
+        }
+    }
 }
 
 impl File for OSInode {
@@ -77,6 +104,10 @@ impl File for OSInode {
             total_write_size += write_size;
         }
         total_write_size
+    }
+    fn stat(&self, stat: &mut Stat) -> isize {
+        *stat = self.metadata();
+        0
     }
 }
 
@@ -148,4 +179,35 @@ pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
             Arc::new(OSInode::new(readable, writable, inode))
         })
     }
+}
+
+/// Create a hard link to an existing file located at root directory
+pub fn link_file(old_name: &str, new_name: &str) -> Result<(), ()> {
+    if old_name == new_name {
+        return Err(());
+    }
+    let old_inode = ROOT_INODE.find(old_name).ok_or(())?;
+    if old_inode.is_dir() {
+        return Err(());
+    }
+    ROOT_INODE
+        .add_dirent(new_name, old_inode.inode_id())
+        .ok_or(())
+        .map(|_| ())
+}
+
+/// Remove a directory entry from the root directory
+pub fn unlink_file(name: &str) -> Result<(), ()> {
+    // prevent unlinking of non-existent files or directories
+    let target = ROOT_INODE.find(name).ok_or(())?;
+    if target.is_dir() {
+        return Err(());
+    }
+    let inode_id = target.inode_id();
+    let removed = ROOT_INODE.remove_dirent(name).ok_or(())?;
+    debug_assert_eq!(removed, inode_id);
+    if ROOT_INODE.link_count(inode_id) == 0 {
+        target.dealloc();
+    }
+    Ok(())
 }

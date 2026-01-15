@@ -1,5 +1,7 @@
-use crate::fs::{OpenFlags, open_file};
-use crate::mm::{UserBuffer, translated_byte_buffer, translated_str};
+use log::trace;
+
+use crate::fs::{OpenFlags, Stat, link_file, open_file, unlink_file};
+use crate::mm::{UserBuffer, translated_byte_buffer, translated_refmut, translated_str};
 use crate::task::{current_task, current_user_token};
 
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
@@ -57,5 +59,46 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
         file.write(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
     } else {
         -1
+    }
+}
+
+pub fn sys_fstat(fd: usize, st: *mut Stat) -> isize {
+    trace!("kernel:pid[{}] sys_fstat", current_task().unwrap().pid.0);
+    let token = current_user_token();
+    let task = current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+    if fd >= inner.fd_table.len() {
+        return -1;
+    }
+    if let Some(file) = &inner.fd_table[fd] {
+        let file = file.clone();
+        drop(inner);
+        let stat_buf = translated_refmut(token, st);
+        file.stat(stat_buf)
+    } else {
+        -1
+    }
+}
+pub fn sys_linkat(old_name: *const u8, new_name: *const u8) -> isize {
+    trace!("kernel:pid[{}] sys_linkat", current_task().unwrap().pid.0);
+    let token = current_user_token();
+    let old_path = translated_str(token, old_name);
+    let new_path = translated_str(token, new_name);
+    if old_path == new_path {
+        return -1;
+    }
+    match link_file(old_path.as_str(), new_path.as_str()) {
+        Ok(_) => 0,
+        Err(_) => -1,
+    }
+}
+
+pub fn sys_unlinkat(name: *const u8) -> isize {
+    trace!("kernel:pid[{}] sys_unlinkat", current_task().unwrap().pid.0);
+    let token = current_user_token();
+    let path = translated_str(token, name);
+    match unlink_file(path.as_str()) {
+        Ok(_) => 0,
+        Err(_) => -1,
     }
 }
