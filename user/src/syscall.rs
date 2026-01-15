@@ -7,12 +7,14 @@ const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
 const SYS_EXIT: usize = 93;
 const SYS_YIELD: usize = 124;
+const SYS_SET_PRIORITY: usize = 140;
 const SYS_GET_TIME: usize = 169;
 const SYS_GETPID: usize = 172;
 const SYS_SBRK: usize = 214;
 const SYS_FORK: usize = 220;
 const SYS_EXEC: usize = 221;
 const SYS_WAITPID: usize = 260;
+const SYS_SPAWN: usize = 400;
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -53,6 +55,10 @@ pub fn sys_yield() -> isize {
     syscall(SYS_YIELD, [0, 0, 0])
 }
 
+pub fn sys_set_priority(prio: isize) -> isize {
+    syscall(SYS_SET_PRIORITY, [prio as usize, 0, 0])
+}
+
 pub fn sys_get_time(time: &mut TimeVal, tz: usize) -> isize {
     syscall(SYS_GET_TIME, [time as *const _ as usize, tz, 0])
 }
@@ -75,4 +81,8 @@ pub fn sys_exec(path: &str) -> isize {
 
 pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
     syscall(SYS_WAITPID, [pid as usize, exit_code as usize, 0])
+}
+
+pub fn sys_spawn(path: &str) -> isize {
+    syscall(SYS_SPAWN, [path.as_ptr() as usize, 0, 0])
 }

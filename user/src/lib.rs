@@ -100,6 +100,9 @@ pub fn exit(exit_code: i32) -> ! {
 pub fn yield_() -> isize {
     sys_yield()
 }
+pub fn set_priority(prio: isize) -> isize {
+    sys_set_priority(prio)
+}
 pub fn get_time() -> isize {
     let mut time = TimeVal::new();
     match sys_get_time(&mut time, 0) {
@@ -140,6 +143,9 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
             exit_pid => return exit_pid,
         }
     }
+}
+pub fn spawn(path: &str) -> isize {
+    sys_spawn(path)
 }
 
 pub fn sleep(period_ms: usize) {

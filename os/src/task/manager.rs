@@ -1,4 +1,5 @@
 use super::TaskControlBlock;
+use crate::config::BIG_STRIDE;
 use crate::sync::UPSafeCell;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
@@ -22,7 +23,21 @@ impl TaskManager {
     }
 
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        self.ready_queue.pop_front()
+        if self.ready_queue.is_empty() {
+            return None;
+        }
+
+        let mut min_stride = BIG_STRIDE;
+        let mut min_index = 0;
+
+        for (i, task) in self.ready_queue.iter().enumerate() {
+            let task_inner = task.inner_exclusive_access();
+            if task_inner.stride < min_stride {
+                min_stride = task_inner.stride;
+                min_index = i;
+            }
+        }
+        self.ready_queue.remove(min_index)
     }
 }
 
