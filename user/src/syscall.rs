@@ -1,15 +1,21 @@
-use crate::{Stat, TimeVal};
+use crate::{SignalAction, Stat, TimeVal};
 use core::arch::asm;
 
+const SYS_DUP: usize = 24;
 const SYS_OPEN: usize = 56;
 const SYS_CLOSE: usize = 57;
 const SYS_UNLINKAT: usize = 35;
 const SYS_LINKAT: usize = 37;
+const SYS_PIPE: usize = 59;
 const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
 const SYS_FSTAT: usize = 80;
 const SYS_EXIT: usize = 93;
 const SYS_YIELD: usize = 124;
+const SYS_KILL: usize = 129;
+const SYS_SIGACTION: usize = 134;
+const SYS_SIGPROCMASK: usize = 135;
+const SYS_SIGRETURN: usize = 139;
 const SYS_SET_PRIORITY: usize = 140;
 const SYS_GET_TIME: usize = 169;
 const SYS_GETPID: usize = 172;
@@ -50,12 +56,20 @@ pub fn syscall6(id: usize, args: [usize; 6]) -> isize {
     ret
 }
 
+pub fn sys_dup(fd: usize) -> isize {
+    syscall(SYS_DUP, [fd, 0, 0])
+}
+
 pub fn sys_open(path: &str, flags: u32) -> isize {
     syscall(SYS_OPEN, [path.as_ptr() as usize, flags as usize, 0])
 }
 
 pub fn sys_close(fd: usize) -> isize {
     syscall(SYS_CLOSE, [fd, 0, 0])
+}
+
+pub fn sys_pipe(pipe: &mut [usize]) -> isize {
+    syscall(SYS_PIPE, [pipe.as_mut_ptr() as usize, 0, 0])
 }
 
 pub fn sys_read(fd: usize, buffer: &mut [u8]) -> isize {
@@ -103,6 +117,29 @@ pub fn sys_yield() -> isize {
     syscall(SYS_YIELD, [0, 0, 0])
 }
 
+pub fn sys_kill(pid: usize, signum: i32) -> isize {
+    syscall(SYS_KILL, [pid, signum as usize, 0])
+}
+
+pub fn sys_sigaction(
+    signum: i32,
+    action: *const SignalAction,
+    old_action: *mut SignalAction,
+) -> isize {
+    syscall(
+        SYS_SIGACTION,
+        [signum as usize, action as usize, old_action as usize],
+    )
+}
+
+pub fn sys_sigprocmask(mask: u32) -> isize {
+    syscall(SYS_SIGPROCMASK, [mask as usize, 0, 0])
+}
+
+pub fn sys_sigreturn() -> isize {
+    syscall(SYS_SIGRETURN, [0, 0, 0])
+}
+
 pub fn sys_set_priority(prio: isize) -> isize {
     syscall(SYS_SET_PRIORITY, [prio as usize, 0, 0])
 }
@@ -123,8 +160,11 @@ pub fn sys_fork() -> isize {
     syscall(SYS_FORK, [0, 0, 0])
 }
 
-pub fn sys_exec(path: &str) -> isize {
-    syscall(SYS_EXEC, [path.as_ptr() as usize, 0, 0])
+pub fn sys_exec(path: &str, args: &[*const u8]) -> isize {
+    syscall(
+        SYS_EXEC,
+        [path.as_ptr() as usize, args.as_ptr() as usize, 0],
+    )
 }
 
 pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {

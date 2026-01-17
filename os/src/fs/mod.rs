@@ -1,10 +1,12 @@
 //! File trait & inode(dir, file, pipe, stdin, stdout)
 
 mod inode;
+mod pipe;
 mod stdio;
 use crate::mm::UserBuffer;
 
 pub use inode::{OpenFlags, link_file, list_apps, open_file, unlink_file};
+pub use pipe::make_pipe;
 pub use stdio::{Stdin, Stdout};
 
 /// trait File for all file types

@@ -1,12 +1,18 @@
+const SYS_DUP: usize = 24;
 const SYS_UNLINKAT: usize = 35;
 const SYS_LINKAT: usize = 37;
 const SYS_OPEN: usize = 56;
 const SYS_CLOSE: usize = 57;
+const SYS_PIPE: usize = 59;
 const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
 const SYS_FSTAT: usize = 80;
 const SYS_EXIT: usize = 93;
 const SYS_YIELD: usize = 124;
+const SYS_KILL: usize = 129;
+const SYS_SIGACTION: usize = 134;
+const SYS_SIGPROCMASK: usize = 135;
+const SYS_SIGRETURN: usize = 139;
 const SYS_SET_PRIORITY: usize = 140;
 const SYS_GET_TIME: usize = 169;
 const SYS_GETPID: usize = 172;
@@ -22,25 +28,35 @@ mod process;
 use fs::*;
 use process::*;
 
-use crate::fs::Stat;
+use crate::{fs::Stat, task::SignalAction};
 
 pub fn syscall(syscall_id: usize, args: [usize; 4]) -> isize {
     match syscall_id {
+        SYS_DUP => sys_dup(args[0]),
         SYS_LINKAT => sys_linkat(args[1] as *const u8, args[3] as *const u8),
         SYS_UNLINKAT => sys_unlinkat(args[1] as *const u8),
         SYS_OPEN => sys_open(args[0] as *const u8, args[1] as u32),
         SYS_CLOSE => sys_close(args[0]),
+        SYS_PIPE => sys_pipe(args[0] as *mut usize),
         SYS_READ => sys_read(args[0], args[1] as *const u8, args[2]),
         SYS_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
         SYS_FSTAT => sys_fstat(args[0], args[1] as *mut Stat),
         SYS_EXIT => sys_exit(args[0] as i32),
         SYS_YIELD => sys_yield(),
+        SYS_KILL => sys_kill(args[0] as usize, args[1] as i32),
+        SYS_SIGACTION => sys_sigaction(
+            args[0] as i32,
+            args[1] as *const SignalAction,
+            args[2] as *mut SignalAction,
+        ),
+        SYS_SIGPROCMASK => sys_sigprocmask(args[0] as u32),
+        SYS_SIGRETURN => sys_sigreturn(),
         SYS_SET_PRIORITY => sys_set_priority(args[0] as isize),
         SYS_GET_TIME => sys_get_time(args[0] as *mut TimeVal, args[1]),
         SYS_GETPID => sys_getpid(),
         SYS_SBRK => sys_sbrk(args[0] as i32),
         SYS_FORK => sys_fork(),
-        SYS_EXEC => sys_exec(args[0] as *const u8),
+        SYS_EXEC => sys_exec(args[0] as *const u8, args[1] as *const usize),
         SYS_WAITPID => sys_waitpid(args[0] as isize, args[1] as *mut i32),
         SYS_SPAWN => sys_spawn(args[0] as *const u8),
         _ => panic!("Unsupported syscall_id: {}", syscall_id),

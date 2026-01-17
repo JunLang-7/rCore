@@ -12,7 +12,7 @@ pub use memory_set::{KERNEL_SPACE, MapPermission, MemorySet, kernel_token};
 use page_table::PTEFlags;
 pub use page_table::{
     PageTable, PageTableEntry, UserBuffer, UserBufferIterator, translated_byte_buffer,
-    translated_refmut, translated_str,
+    translated_ref, translated_refmut, translated_str,
 };
 
 pub fn init() {

@@ -9,13 +9,13 @@ extern crate user_lib;
 
 // item of TESTS : app_name(argv_0), argv_1, argv_2, argv_3, exit_code
 static SUCC_TESTS: &[(&str, &str, &str, &str, i32)] = &[
-    ("exit\0", "\0", "\0", "\0", 0),
+    ("ch5b_exit\0", "\0", "\0", "\0", 0),
     ("fantastic_text\0", "\0", "\0", "\0", 0),
-    ("forktest_simple\0", "\0", "\0", "\0", 0),
-    ("forktest\0", "\0", "\0", "\0", 0),
-    ("forktest2\0", "\0", "\0", "\0", 0),
-    ("forktree\0", "\0", "\0", "\0", 0),
-    ("hello_world\0", "\0", "\0", "\0", 0),
+    ("ch5b_forktest_simple\0", "\0", "\0", "\0", 0),
+    ("ch5b_forktest\0", "\0", "\0", "\0", 0),
+    ("ch5b_forktest2\0", "\0", "\0", "\0", 0),
+    ("ch5b_forktree\0", "\0", "\0", "\0", 0),
+    ("ch2b_hello_world\0", "\0", "\0", "\0", 0),
     ("matrix\0", "\0", "\0", "\0", 0),
     ("sleep_simple\0", "\0", "\0", "\0", 0),
     ("sleep\0", "\0", "\0", "\0", 0),
@@ -62,7 +62,7 @@ fn run_tests(tests: &[(&str, &str, &str, &str, i32)]) -> i32 {
 
         let pid = fork();
         if pid == 0 {
-            exec(test.0);
+            exec(test.0, &arr[..]);
             panic!("unreachable!");
         } else {
             let mut exit_code: i32 = Default::default();

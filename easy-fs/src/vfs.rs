@@ -1,6 +1,6 @@
 use super::{
-    block_cache_sync_all, get_block_cache, BlockDevice, DirEntry, DiskInode, DiskInodeType,
-    EasyFileSystem, DIRENT_SZ,
+    BlockDevice, DIRENT_SZ, DirEntry, DiskInode, DiskInodeType, EasyFileSystem,
+    block_cache_sync_all, get_block_cache,
 };
 use alloc::string::String;
 use alloc::sync::Arc;
