@@ -1,8 +1,8 @@
 use super::__switch;
 use super::{TaskContext, TaskControlBlock};
 use super::{TaskStatus, fetch_task};
-use crate::config::BIG_STRIDE;
 use crate::sync::UPSafeCell;
+use crate::task::process::ProcessControlBlock;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use lazy_static::*;
@@ -50,9 +50,6 @@ pub fn run_tasks() {
             let mut task_inner = task.inner_exclusive_access();
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
             task_inner.task_status = TaskStatus::Running;
-            // change stride value
-            let pass = BIG_STRIDE / task_inner.priority;
-            task_inner.stride += pass;
             drop(task_inner);
             // release coming task TCB manually
             processor.current = Some(task);
@@ -61,6 +58,8 @@ pub fn run_tasks() {
             unsafe {
                 __switch(idle_task_cx_ptr, next_task_cx_ptr);
             }
+        } else {
+            println!("no tasks available in run_tasks");
         }
     }
 }
@@ -75,11 +74,15 @@ pub fn current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
+/// Get the current process
+pub fn current_process() -> Arc<ProcessControlBlock> {
+    current_task().unwrap().process.upgrade().unwrap()
+}
+
 /// Get token of the address space of current task
 pub fn current_user_token() -> usize {
     let task = current_task().unwrap();
-    let token = task.inner_exclusive_access().get_user_token();
-    token
+    task.get_user_token()
 }
 
 /// Get the mutable reference to trap context of current task
@@ -88,6 +91,22 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
         .unwrap()
         .inner_exclusive_access()
         .get_trap_cx()
+}
+
+/// Get the user virtual address of trap context of current task
+pub fn current_trap_cx_user_va() -> usize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .trap_cx_user_va()
+}
+
+/// Get the kernel stack top virtual address of current task
+pub fn current_kstack_top() -> usize {
+    current_task().unwrap().kernel_stack.get_top()
 }
 
 /// Return to idle control flow for new scheduling

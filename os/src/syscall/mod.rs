@@ -10,25 +10,24 @@ const SYS_FSTAT: usize = 80;
 const SYS_EXIT: usize = 93;
 const SYS_YIELD: usize = 124;
 const SYS_KILL: usize = 129;
-const SYS_SIGACTION: usize = 134;
-const SYS_SIGPROCMASK: usize = 135;
-const SYS_SIGRETURN: usize = 139;
-const SYS_SET_PRIORITY: usize = 140;
 const SYS_GET_TIME: usize = 169;
 const SYS_GETPID: usize = 172;
-const SYS_SBRK: usize = 214;
 const SYS_FORK: usize = 220;
 const SYS_EXEC: usize = 221;
 const SYS_WAITPID: usize = 260;
-const SYS_SPAWN: usize = 400;
+const SYS_THREAD_CREATE: usize = 1000;
+const SYS_GETTID: usize = 1001;
+const SYS_WAITTID: usize = 1002;
 
 mod fs;
 mod process;
+mod thread;
 
 use fs::*;
 use process::*;
+use thread::*;
 
-use crate::{fs::Stat, task::SignalAction};
+use crate::fs::Stat;
 
 pub fn syscall(syscall_id: usize, args: [usize; 4]) -> isize {
     match syscall_id {
@@ -44,21 +43,14 @@ pub fn syscall(syscall_id: usize, args: [usize; 4]) -> isize {
         SYS_EXIT => sys_exit(args[0] as i32),
         SYS_YIELD => sys_yield(),
         SYS_KILL => sys_kill(args[0] as usize, args[1] as i32),
-        SYS_SIGACTION => sys_sigaction(
-            args[0] as i32,
-            args[1] as *const SignalAction,
-            args[2] as *mut SignalAction,
-        ),
-        SYS_SIGPROCMASK => sys_sigprocmask(args[0] as u32),
-        SYS_SIGRETURN => sys_sigreturn(),
-        SYS_SET_PRIORITY => sys_set_priority(args[0] as isize),
         SYS_GET_TIME => sys_get_time(args[0] as *mut TimeVal, args[1]),
         SYS_GETPID => sys_getpid(),
-        SYS_SBRK => sys_sbrk(args[0] as i32),
         SYS_FORK => sys_fork(),
         SYS_EXEC => sys_exec(args[0] as *const u8, args[1] as *const usize),
         SYS_WAITPID => sys_waitpid(args[0] as isize, args[1] as *mut i32),
-        SYS_SPAWN => sys_spawn(args[0] as *const u8),
+        SYS_THREAD_CREATE => sys_thread_create(args[0], args[1]),
+        SYS_GETTID => sys_gettid(),
+        SYS_WAITTID => sys_waittid(args[0]) as isize,
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
 }

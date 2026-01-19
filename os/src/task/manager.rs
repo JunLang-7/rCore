@@ -1,5 +1,4 @@
-use super::TaskControlBlock;
-use crate::config::BIG_STRIDE;
+use super::{ProcessControlBlock, TaskControlBlock, TaskStatus};
 use crate::sync::UPSafeCell;
 use alloc::collections::VecDeque;
 use alloc::collections::btree_map::BTreeMap;
@@ -23,38 +22,44 @@ impl TaskManager {
         self.ready_queue.push_back(task);
     }
 
+    pub fn remove(&mut self, task: Arc<TaskControlBlock>) {
+        if let Some((id, _)) = self
+            .ready_queue
+            .iter()
+            .enumerate()
+            .find(|(_, t)| Arc::as_ptr(t) == Arc::as_ptr(&task))
+        {
+            self.ready_queue.remove(id);
+        }
+    }
+
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
-        if self.ready_queue.is_empty() {
-            return None;
-        }
-
-        let mut min_stride = BIG_STRIDE;
-        let mut min_index = 0;
-
-        for (i, task) in self.ready_queue.iter().enumerate() {
-            let task_inner = task.inner_exclusive_access();
-            if task_inner.stride < min_stride {
-                min_stride = task_inner.stride;
-                min_index = i;
-            }
-        }
-        self.ready_queue.remove(min_index)
+        self.ready_queue.pop_front()
     }
 }
 
 lazy_static! {
     pub static ref TASK_MANAGER: UPSafeCell<TaskManager> =
         unsafe { UPSafeCell::new(TaskManager::new()) };
-    pub static ref PID2TCB: UPSafeCell<BTreeMap<usize, Arc<TaskControlBlock>>> =
+    pub static ref PID2TCB: UPSafeCell<BTreeMap<usize, Arc<ProcessControlBlock>>> =
         unsafe { UPSafeCell::new(BTreeMap::new()) };
 }
 
 /// Interface offered to add task
 pub fn add_task(task: Arc<TaskControlBlock>) {
-    PID2TCB
-        .exclusive_access()
-        .insert(task.getpid(), Arc::clone(&task));
     TASK_MANAGER.exclusive_access().add(task);
+}
+
+pub fn wakeup_task(task: Arc<TaskControlBlock>) {
+    let mut task_inner = task.inner_exclusive_access();
+    task_inner.task_status = TaskStatus::Ready;
+    drop(task_inner);
+    add_task(task);
+}
+
+/// Interface offered to remove task
+pub fn remove_task(task: Arc<TaskControlBlock>) {
+    TASK_MANAGER.exclusive_access().remove(task);
 }
 
 /// Interface offered to pop the first task
@@ -62,12 +67,16 @@ pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
 }
 
-pub fn pid2task(pid: usize) -> Option<Arc<TaskControlBlock>> {
+pub fn pid2process(pid: usize) -> Option<Arc<ProcessControlBlock>> {
     let map = PID2TCB.exclusive_access();
     map.get(&pid).map(Arc::clone)
 }
 
-pub fn remove_from_pid2task(pid: usize) {
+pub fn insert_into_pid2process(pid: usize, process: Arc<ProcessControlBlock>) {
+    PID2TCB.exclusive_access().insert(pid, process);
+}
+
+pub fn remove_from_pid2process(pid: usize) {
     let mut map = PID2TCB.exclusive_access();
     if map.remove(&pid).is_none() {
         panic!("Cannot find pid {} in PID2TCB map!", pid);

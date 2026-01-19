@@ -1,8 +1,8 @@
 use crate::fs::{OpenFlags, open_file};
 use crate::mm::{translated_byte_buffer, translated_ref, translated_refmut, translated_str};
 use crate::task::{
-    MAX_SIG, SignalAction, SignalFlags, add_task, current_task, current_user_token,
-    exit_current_and_run_next, pid2task, suspend_current_and_run_next,
+    SignalFlags, current_process, current_task, current_user_token, exit_current_and_run_next,
+    pid2process, suspend_current_and_run_next,
 };
 use crate::timer::get_time_us;
 use alloc::string::String;
@@ -23,6 +23,7 @@ pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
     panic!("Unreachable in sys_exit");
 }
+
 pub fn sys_yield() -> isize {
     suspend_current_and_run_next();
     0
@@ -56,28 +57,20 @@ pub fn sys_get_time(_ts: *mut TimeVal, _tz: usize) -> isize {
 }
 
 pub fn sys_getpid() -> isize {
-    current_task().unwrap().pid.0 as isize
-}
-
-pub fn sys_sbrk(size: i32) -> isize {
-    if let Some(old_brk) = current_task().unwrap().change_program_brk(size) {
-        old_brk as isize
-    } else {
-        -1
-    }
+    current_task().unwrap().process.upgrade().unwrap().getpid() as isize
 }
 
 pub fn sys_fork() -> isize {
-    let current_task = current_task().unwrap();
-    let new_task = current_task.fork();
-    let new_pid = new_task.pid.0;
+    let current_process = current_process();
+    let new_process = current_process.fork();
+    let new_pid = new_process.getpid();
     // modify trap context of new task, because it returns immediately after switching
-    let trap_cx = new_task.inner_exclusive_access().get_trap_cx();
+    let new_process_inner = new_process.inner_exclusive_access();
+    let task = new_process_inner.tasks[0].as_ref().unwrap();
+    let trap_cx = task.inner_exclusive_access().get_trap_cx();
     // we do not have to move to next instruction since we have done it before
     // for child process, fork returns 0
     trap_cx.x[10] = 0;
-    // add new task to scheduler
-    add_task(new_task);
     new_pid as isize
 }
 
@@ -97,9 +90,9 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     }
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
         let all_data = app_inode.read_all();
-        let task = current_task().unwrap();
+        let process = current_process();
         let argc = arg_vec.len();
-        task.exec(all_data.as_slice(), arg_vec);
+        process.exec(all_data.as_slice(), arg_vec);
         // return argc because cx.x[10] will be covered with it later
         argc as isize
     } else {
@@ -110,10 +103,10 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
 /// If there is not a child process whose pid is same as given, return -1
 /// Else if there is a child process but it is still running, return -2
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
-    let task = current_task().unwrap();
+    let process = current_process();
 
     // ---- access current PCB exclusively
-    let mut inner = task.inner_exclusive_access();
+    let mut inner = process.inner_exclusive_access();
     if !inner
         .children
         .iter()
@@ -124,7 +117,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     }
     let pair = inner.children.iter().enumerate().find(|(_, p)| {
         // ++++ temporarily access child PCB lock exclusively
-        p.inner_exclusive_access().is_zombie() && (pid == -1 || pid as usize == p.getpid())
+        p.inner_exclusive_access().is_zombie && (pid == -1 || pid as usize == p.getpid())
         // ++++ release child PCB
     });
     if let Some((idx, _)) = pair {
@@ -143,42 +136,8 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     // ---- release current PCB lock automatically
 }
 
-/// YOUR JOB: Implement spawn.
-/// HINT: fork + exec =/= spawn
-pub fn sys_spawn(path: *const u8) -> isize {
-    trace!("kernel:pid[{}] sys_spawn", current_task().unwrap().pid.0);
-    let token = current_user_token();
-    let path = translated_str(token, path);
-    if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
-        let all_data = app_inode.read_all();
-        let current_task = current_task().unwrap();
-        let new_task = current_task.spawn(all_data.as_slice());
-        let new_pid = new_task.pid.0;
-        add_task(new_task);
-        new_pid as isize
-    } else {
-        -1
-    }
-}
-
-// YOUR JOB: Set task priority.
-pub fn sys_set_priority(prio: isize) -> isize {
-    trace!(
-        "kernel:pid[{}] sys_set_priority, piro = {}",
-        current_task().unwrap().pid.0,
-        prio
-    );
-    if prio <= 1 {
-        return -1;
-    }
-    let task = current_task().unwrap();
-    let mut inner = task.inner_exclusive_access();
-    inner.priority = prio as usize;
-    prio
-}
-
 pub fn sys_kill(pid: usize, signum: i32) -> isize {
-    if let Some(task) = pid2task(pid) {
+    if let Some(task) = pid2process(pid) {
         if let Some(flag) = SignalFlags::from_bits(1 << signum) {
             // insert the signal if legal
             let mut task_ref = task.inner_exclusive_access();
@@ -190,73 +149,6 @@ pub fn sys_kill(pid: usize, signum: i32) -> isize {
         } else {
             -1
         }
-    } else {
-        -1
-    }
-}
-
-fn check_signal_error(signal: SignalFlags, action: usize, old_action: usize) -> bool {
-    if action == 0
-        || old_action == 0
-        || signal == SignalFlags::SIGKILL
-        || signal == SignalFlags::SIGSTOP
-    {
-        true
-    } else {
-        false
-    }
-}
-
-pub fn sys_sigaction(
-    signum: i32,
-    action: *const SignalAction,
-    old_action: *mut SignalAction,
-) -> isize {
-    let token = current_user_token();
-    let task = current_task().unwrap();
-    let mut inner = task.inner_exclusive_access();
-    if signum as usize > MAX_SIG {
-        return -1;
-    }
-    if let Some(flag) = SignalFlags::from_bits(1 << signum) {
-        if check_signal_error(flag, action as usize, old_action as usize) {
-            return -1;
-        }
-        let prev_action = inner.signal_actions.table[signum as usize];
-        *translated_refmut(token, old_action) = prev_action;
-        inner.signal_actions.table[signum as usize] = *translated_ref(token, action);
-        0
-    } else {
-        -1
-    }
-}
-
-pub fn sys_sigprocmask(mask: u32) -> isize {
-    if let Some(task) = current_task() {
-        let mut inner = task.inner_exclusive_access();
-        let old_mask = inner.signal_mask;
-        if let Some(flag) = SignalFlags::from_bits(mask) {
-            inner.signal_mask = flag;
-            old_mask.bits() as isize
-        } else {
-            -1
-        }
-    } else {
-        -1
-    }
-}
-
-pub fn sys_sigreturn() -> isize {
-    if let Some(task) = current_task() {
-        let mut inner = task.inner_exclusive_access();
-        inner.handling_sig = -1;
-        // restore the trap context
-        let trap_cx = inner.get_trap_cx();
-        *trap_cx = inner.trap_ctx_backup.unwrap();
-        // Here we return the value of a0 in the trap_ctx,
-        // otherwise it will be overwritten after we trap
-        // back to the original execution of the application.
-        trap_cx.x[10] as isize
     } else {
         -1
     }
