@@ -316,11 +316,8 @@ pub fn spawn(path: &str) -> isize {
     sys_spawn(path)
 }
 
-pub fn sleep(period_ms: usize) {
-    let start = get_time();
-    while get_time() < start + period_ms as isize {
-        sys_yield();
-    }
+pub fn sleep(sleep_ms: usize) {
+    sys_sleep(sleep_ms);
 }
 
 pub fn thread_create(entry: usize, arg: usize) -> isize {
@@ -338,4 +335,16 @@ pub fn waittid(tid: usize) -> isize {
             exit_code => return exit_code,
         }
     }
+}
+pub fn mutex_create() -> isize {
+    sys_mutex_create(false)
+}
+pub fn mutex_blocking_create() -> isize {
+    sys_mutex_create(true)
+}
+pub fn mutex_lock(mutex_id: usize) -> isize {
+    sys_mutex_lock(mutex_id)
+}
+pub fn mutex_unlock(mutex_id: usize) -> isize {
+    sys_mutex_unlock(mutex_id)
 }

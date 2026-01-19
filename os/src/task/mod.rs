@@ -28,8 +28,8 @@ pub use manager::{
     remove_task, wakeup_task,
 };
 pub use processor::{
-    Processor, current_process, current_task, current_trap_cx, current_user_token, run_tasks,
-    schedule, take_current_task, current_trap_cx_user_va, current_kstack_top
+    Processor, current_kstack_top, current_process, current_task, current_trap_cx,
+    current_trap_cx_user_va, current_user_token, run_tasks, schedule, take_current_task,
 };
 pub use signal::{MAX_SIG, SignalFlags};
 pub use task::{TaskControlBlock, TaskStatus};
@@ -50,6 +50,16 @@ pub fn suspend_current_and_run_next() {
     // push back to ready queue
     add_task(task);
     // jump to scheduling cycle
+    schedule(task_cx_ptr);
+}
+
+/// Block the current 'Running' task, take it away from the task list and run the next task in task list
+pub fn block_current_and_run_next() {
+    let task = take_current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
+    task_inner.task_status = TaskStatus::Blocked;
+    drop(task_inner);
     schedule(task_cx_ptr);
 }
 

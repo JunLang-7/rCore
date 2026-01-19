@@ -11,6 +11,7 @@ const SYS_READ: usize = 63;
 const SYS_WRITE: usize = 64;
 const SYS_FSTAT: usize = 80;
 const SYS_EXIT: usize = 93;
+const SYS_SLEEP: usize = 101;
 const SYS_YIELD: usize = 124;
 const SYS_KILL: usize = 129;
 const SYS_SIGACTION: usize = 134;
@@ -27,6 +28,9 @@ const SYS_SPAWN: usize = 400;
 const SYS_THREAD_CREATE: usize = 1000;
 const SYS_GETTID: usize = 1001;
 const SYS_WAITTID: usize = 1002;
+const SYS_MUTEX_CREATE: usize = 1010;
+const SYS_MUTEX_LOCK: usize = 1011;
+const SYS_MUTEX_UNLOCK: usize = 1012;
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -116,6 +120,10 @@ pub fn sys_exit(xstate: i32) -> ! {
     panic!("sys_exit never returns!");
 }
 
+pub fn sys_sleep(sleep_ms: usize) -> isize {
+    syscall(SYS_SLEEP, [sleep_ms, 0, 0])
+}
+
 pub fn sys_yield() -> isize {
     syscall(SYS_YIELD, [0, 0, 0])
 }
@@ -188,4 +196,16 @@ pub fn sys_gettid() -> isize {
 
 pub fn sys_waittid(tid: usize) -> isize {
     syscall(SYS_WAITTID, [tid, 0, 0])
+}
+
+pub fn sys_mutex_create(blocking: bool) -> isize {
+    syscall(SYS_MUTEX_CREATE, [blocking as usize, 0, 0])
+}
+
+pub fn sys_mutex_lock(mutex_id: usize) -> isize {
+    syscall(SYS_MUTEX_LOCK, [mutex_id, 0, 0])
+}
+
+pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
+    syscall(SYS_MUTEX_UNLOCK, [mutex_id, 0, 0])
 }

@@ -78,6 +78,6 @@ pub enum TaskStatus {
     UnInit,
     Ready,
     Running,
-    Zombie,
+    Blocked,
     //Exited,
 }
