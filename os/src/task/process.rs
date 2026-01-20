@@ -10,7 +10,7 @@ use alloc::{
 use crate::{
     fs::{File, Stdin, Stdout},
     mm::{KERNEL_SPACE, MemorySet, translated_refmut},
-    sync::{Mutex, Semaphore, UPSafeCell},
+    sync::{CondVar, Mutex, Semaphore, UPSafeCell},
     task::{
         PidHandle, RecycleAllocator, SignalFlags, add_task, manager::insert_into_pid2process,
         pid_alloc, task::TaskControlBlock,
@@ -37,6 +37,7 @@ pub struct ProcessControlBlockInner {
     pub task_res_allocator: RecycleAllocator,
     pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
     pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
+    pub condvar_list: Vec<Option<Arc<CondVar>>>,
 }
 
 impl ProcessControlBlockInner {
@@ -97,8 +98,9 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-                    mutex_list: Vec::<Option<Arc<dyn Mutex>>>::new(),
-                    semaphore_list: Vec::<Option<Arc<Semaphore>>>::new(),
+                    mutex_list: Vec::new(),
+                    semaphore_list: Vec::new(),
+                    condvar_list: Vec::new(),
                 })
             },
         });
@@ -219,8 +221,9 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
-                    mutex_list: Vec::<Option<Arc<dyn Mutex>>>::new(),
-                    semaphore_list: Vec::<Option<Arc<Semaphore>>>::new(),
+                    mutex_list: Vec::new(),
+                    semaphore_list: Vec::new(),
+                    condvar_list: Vec::new(),
                 })
             },
         });
