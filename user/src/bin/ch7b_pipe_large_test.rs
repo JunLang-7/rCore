@@ -7,7 +7,7 @@ extern crate user_lib;
 extern crate alloc;
 
 use alloc::format;
-use user_lib::{close, fork, get_time, getpid, pipe, read, wait, write};
+use user_lib::{close, fork, getpid, pipe, read, wait, write};
 
 const LENGTH: usize = 3000;
 #[unsafe(no_mangle)]
