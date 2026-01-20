@@ -31,6 +31,9 @@ const SYS_WAITTID: usize = 1002;
 const SYS_MUTEX_CREATE: usize = 1010;
 const SYS_MUTEX_LOCK: usize = 1011;
 const SYS_MUTEX_UNLOCK: usize = 1012;
+const SYS_SEMAPHORE_CREATE: usize = 1020;
+const SYS_SEMAPHORE_UP: usize = 1021;
+const SYS_SEMAPHORE_DOWN: usize = 1022;
 
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -208,4 +211,16 @@ pub fn sys_mutex_lock(mutex_id: usize) -> isize {
 
 pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
     syscall(SYS_MUTEX_UNLOCK, [mutex_id, 0, 0])
+}
+
+pub fn sys_semaphore_create(res_count: usize) -> isize {
+    syscall(SYS_SEMAPHORE_CREATE, [res_count, 0, 0])
+}
+
+pub fn sys_semaphore_up(sem_id: usize) -> isize {
+    syscall(SYS_SEMAPHORE_UP, [sem_id, 0, 0])
+}
+
+pub fn sys_semaphore_down(sem_id: usize) -> isize {
+    syscall(SYS_SEMAPHORE_DOWN, [sem_id, 0, 0])
 }
